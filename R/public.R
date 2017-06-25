@@ -8,7 +8,7 @@
 #'
 #' @param ds Selects the data set for this operation. Default set to "all".
 #'           Check available option with DataSetList()
-#' @return Pairs of datasate
+#' @return Print information about data set status.
 #' @export
 #' @examples
 #' DataSetStatus("cves")
@@ -54,6 +54,40 @@ DataSetStatus <- function(ds = "all") {
       status <- "-:"
     }
   }
+  if (tolower(ds) %in% c("cwes", "all")) {
+    # Get Status from local cwes data.frame
+    if (DataSetAvailable("cwes")) {
+      print("-: CWES dataset:")
+      cwes.timestamp <- strptime(netsec.data[[1]][["cwes.ini"]], format = "%Y-%m-%d")
+      print(paste(" |- Last update for CWES dataset at", as.character(cwes.timestamp)))
+      print(paste(" |- Data set with", as.character(nrow(netsec.data[[2]][["cwes"]])), "rows and",
+                  as.character(ncol(netsec.data[[2]][["cwes"]])), "variables."))
+      # cweonline <- strptime(LastDownloadCWEDate(), format = "%Y-%m-%d")
+      # print(paste(" |- Online RAW data updated at", cweonline))
+      # if ((cweonline-cwes.timestamp)<=0) {
+      #   print(paste(" |- No updates needed for CWES dataset."))
+      # } else {
+      #   print(paste(" |- CWES dataset", as.character(cweonline-cwes.timestamp), "days outdated."))
+      # }
+    }
+  }
+  if (tolower(ds) %in% c("capec", "all")) {
+    # Get Status from local capec data.frame
+    if (DataSetAvailable("capec")) {
+      print("-: CAPEC dataset:")
+      capec.timestamp <- strptime(netsec.data[[1]][["capec.ini"]], format = "%Y-%m-%d")
+      print(paste(" |- Last update for CAPEC dataset at", as.character(capec.timestamp)))
+      print(paste(" |- Data set with", as.character(nrow(netsec.data[[2]][["capec"]])), "rows and",
+                  as.character(ncol(netsec.data[[2]][["capec"]])), "variables."))
+      # cweonline <- strptime(LastDownloadCWEDate(), format = "%Y-%m-%d")
+      # print(paste(" |- Online RAW data updated at", cweonline))
+      # if ((cweonline-cwes.timestamp)<=0) {
+      #   print(paste(" |- No updates needed for CWES dataset."))
+      # } else {
+      #   print(paste(" |- CWES dataset", as.character(cweonline-cwes.timestamp), "days outdated."))
+      # }
+    }
+  }
   return(status)
 }
 
@@ -87,26 +121,17 @@ DataSetStatus <- function(ds = "all") {
 DataSetUpdate <- function(ds = "all", samples = FALSE, use.remote = TRUE) {
 
   ds <- tolower(ds)
-  if (ds %in% c("all", "cves", "cpes")) {
-    # TODO: Create netsec.data if not exists
-    # Create netsec.data structure
-    # timestamp <- list()
-    # datasets <- list()
-    # netsec.data <- list(timestamp, datasets)
-    # names(netsec.data) <- c("dwinfo","datasets")
-
+  if (ds %in% c("all", "cves", "cpes", "cwes", "capec")) {
     cves.ini <- Sys.Date()
     cpes.ini <- Sys.Date()
+    cwes.ini <- Sys.Date()
+    capec.ini <- Sys.Date()
     timestamp <- list()
     datasets <- netsec.data$datasets
     cves.nrow <- nrow(netsec.data$datasets$cves)
     cpes.nrow <- nrow(netsec.data$datasets$cpes)
-
-    # print(paste(ls(parent.env(environment()))))
-    # netsec.data$dwinfo[["test"]] <- "OK"
-    # assign(x = "netsec.data2", value = netsec.data, envir = parent.env(environment()))
-    # netsec.data <- netsec.data2
-
+    cwes.nrow <- nrow(netsec.data$datasets$cwes)
+    capec.nrow <- nrow(netsec.data$datasets$capec)
 
     # Get updated data.frames
     if (use.remote) {
@@ -124,15 +149,33 @@ DataSetUpdate <- function(ds = "all", samples = FALSE, use.remote = TRUE) {
         cpes <- netsec.data$datasets$cpes
         cpes.ini <- netsec.data$dwinfo[["cpes.ini"]]
       }
+      if (tolower(ds) %in% c("cwes", "all")) {
+        #  Update local cwes data.frame from official sources
+        cwes <- netsec.data$datasets$cwes
+        cwes.ini <- netsec.data$dwinfo[["cwes.ini"]]
+      }
+      if (tolower(ds) %in% c("capec", "all")) {
+        #  Update local capec data.frame from official sources
+        capec <- netsec.data$datasets$capec
+        capec.ini <- netsec.data$dwinfo[["capec.ini"]]
+      }
       rm(netsec.data)
     } else {
       if (tolower(ds) %in% c("cves", "all")) {
-        #  Update local cves data.frame from official sources
+        print("Updating local cves data.frame from official sources.")
         cves <- GetCVEData()
       }
       if (tolower(ds) %in% c("cpes", "all")) {
-        #  Update local cpes data.frame from official sources
+        print("Updating local cpes data.frame from official sources.")
         cpes <- GetCPEData()
+      }
+      if (tolower(ds) %in% c("cwes", "all")) {
+        print("Updating local cwes data.frame from official sources.")
+        cwes <- GetCWEData()
+      }
+      if (tolower(ds) %in% c("capec", "all")) {
+        print("Updating local capec data.frame from official sources.")
+        capec <- GetCAPECData()
       }
     }
 
@@ -143,7 +186,7 @@ DataSetUpdate <- function(ds = "all", samples = FALSE, use.remote = TRUE) {
       netsec.data$dwinfo[["cves.fin"]] <- cves.ini
       datasets[["cves"]] <- cves
       new.cves <- as.character(nrow(cves) - cves.nrow)
-      print(paste("-: Updated CVEs data.frame has", new.cves, " new observations."))
+      print(paste("Updated CVEs data.frame has", new.cves, " new observations."))
     }
     if (tolower(ds) %in% c("cpes", "all")) {
       #  Update package datasets with updated cpes data.frame
@@ -151,7 +194,23 @@ DataSetUpdate <- function(ds = "all", samples = FALSE, use.remote = TRUE) {
       netsec.data$dwinfo[["cpes.fin"]] <- cpes.ini
       datasets[["cpes"]] <- cpes
       new.cpes <- as.character(nrow(cpes) - cpes.nrow)
-      print(paste("-: Updated CPEs data.frame has", new.cpes, " new observations."))
+      print(paste("Updated CPEs data.frame has", new.cpes, " new observations."))
+    }
+    if (tolower(ds) %in% c("cwes", "all")) {
+      #  Update package datasets with updated cwes data.frame
+      netsec.data$dwinfo[["cwes.ini"]] <- cwes.ini
+      netsec.data$dwinfo[["cwes.fin"]] <- cwes.ini
+      datasets[["cwes"]] <- cwes
+      new.cwes <- as.character(nrow(cwes) - cwes.nrow)
+      print(paste("Updated CWEs data.frame has", new.cwes, " new observations."))
+    }
+    if (tolower(ds) %in% c("capec", "all")) {
+      #  Update package datasets with updated capec data.frame
+      netsec.data$dwinfo[["capec.ini"]] <- capec.ini
+      netsec.data$dwinfo[["capec.fin"]] <- capec.ini
+      datasets[["capec"]] <- capec
+      new.capec <- as.character(nrow(capec) - capec.nrow)
+      print(paste("Updated CAPECs data.frame has", new.capec, " new observations."))
     }
     netsec.data$datasets <- datasets
 
@@ -173,6 +232,24 @@ DataSetUpdate <- function(ds = "all", samples = FALSE, use.remote = TRUE) {
         # cpes.sample[cols] <- lapply(cpes.sample[cols], factor)
         save(object = cpes.sample, file = "data/cpes.sample.rda", compress = "xz")
       }
+      if (tolower(ds) %in% c("cwes", "all")) {
+        #  Update local cwes data.frame from official sources
+        # Save sample cves data frame
+        cwes.sample <- cwes[sample(nrow(cwes), 100), ]
+        cwes.sample[] <- lapply(cwes.sample, as.character)
+        # cols <- names(cves)[sapply(cves, class) == "factor"]
+        # cpes.sample[cols] <- lapply(cpes.sample[cols], factor)
+        save(object = cwes.sample, file = "data/cwes.sample.rda", compress = "xz")
+      }
+      if (tolower(ds) %in% c("capec", "all")) {
+        #  Update local capec data.frame from official sources
+        # Save sample capec data frame
+        capec.sample <- capec[sample(nrow(capec), 100), ]
+        capec.sample[] <- lapply(capec.sample, as.character)
+        # cols <- names(capec)[sapply(capec, class) == "factor"]
+        # capec.sample[cols] <- lapply(capec.sample[cols], factor)
+        save(object = capec.sample, file = "data/capec.sample.rda", compress = "xz")
+      }
     }
     print("Compressing and saving data sets to local file...")
     save(object = netsec.data, file = "R/sysdata.rda", compress = "xz")
@@ -190,7 +267,7 @@ DataSetUpdate <- function(ds = "all", samples = FALSE, use.remote = TRUE) {
 
 #' Show data set status.
 #'
-#' \code{DataSetList} Prints information about update status and number of observations of local data sets.
+#' \code{DataSetList} Show data set status. Prints information about update status and number of observations of local data sets.
 #'
 #' Check the internal data structure and returns a character vector with names of available data.frames.
 #'
@@ -215,6 +292,19 @@ DataSetList <- function(){
     ifelse(datasets == "",
            yes = datasets <- "cpes",
            no = datasets[length(datasets) + 1] <- "cpes")
+  }
+
+  # Search CWES dataset
+  if (DataSetAvailable(ds = "cwes")) {
+    ifelse(datasets == "",
+           yes = datasets <- "cwes",
+           no = datasets[length(datasets) + 1] <- "cwes")
+  }
+  # Search CAPEC dataset
+  if (DataSetAvailable(ds = "capec")) {
+    ifelse(datasets == "",
+           yes = datasets <- "capec",
+           no = datasets[length(datasets) + 1] <- "capec")
   }
 
   # Check if no datasets available
